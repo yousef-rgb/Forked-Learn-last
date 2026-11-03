@@ -1,0 +1,82 @@
+/* QUEST design tokens — extracted from the GDG on Campus CHI "Info Session" deck.
+   Brand: #015FFF blue · #8CB6FF light blue (offset shadow) · #012898 navy · #101418 ink · #5F6368 grey · #EEF4FF tint
+   GDG accents: blue / red / yellow / green card bars. */
+:root {
+  --font-heading: 'Century Gothic', 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', Arial, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* brand (theme independent) */
+  --brand-blue: #015fff;
+  --brand-blue-light: #8cb6ff;
+  --brand-navy: #012898;
+  --gdg-red: #db3a2f;
+  --gdg-yellow: #f9ab00;
+  --gdg-green: #1e8e3e;
+
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
+  --space-6: 32px; --space-7: 48px; --space-8: 72px; --space-9: 112px;
+  --radius: 0px;            /* one radius across the product: hard pixel edges */
+  --border-w: 3px;
+  --offset: 5px;            /* hard offset shadow, the deck's signature */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur: 180ms;
+  --content-max: 1200px;
+  --fs-scale: 1;
+}
+
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --bg-alt: #eef4ff;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-tint: #eef4ff;
+  --text: #101418;
+  --text-2: #5f6368;
+  --text-3: #80868b;
+  --border: #101418;          /* strong pixel border */
+  --border-soft: #d7e2f7;
+  --pixel-shadow: #8cb6ff;
+  --primary: #015fff;
+  --primary-contrast: #ffffff;
+  --secondary: #012898;
+  --success: #1e8e3e;
+  --warning: #f9ab00;
+  --error: #d93025;
+  --info: #015fff;
+  --locked-bg: #666b72;
+  --locked-text: #ffffff;
+  --completed: #1e8e3e;
+  --code-bg: #101418;
+  --code-text: #e8eefc;
+  --grass-opacity: 1;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0a0d13;
+  --bg-alt: #0f141d;
+  --surface: #121823;
+  --surface-elevated: #18202e;
+  --surface-tint: #14213d;
+  --text: #f1f5fd;
+  --text-2: #a7b2c6;
+  --text-3: #7c889e;
+  --border: #d5e3ff;
+  --border-soft: #26324a;
+  --pixel-shadow: #0c3bb8;
+  --primary: #4f8dff;
+  --primary-contrast: #06122e;
+  --secondary: #8cb6ff;
+  --success: #4cc779;
+  --warning: #fbbc2c;
+  --error: #ff7a70;
+  --info: #6ea2ff;
+  --locked-bg: #3a4252;
+  --locked-text: #c3cad8;
+  --completed: #4cc779;
+  --code-bg: #070a10;
+  --code-text: #e6ecfb;
+  --grass-opacity: 0.85;
+  color-scheme: dark;
+}
