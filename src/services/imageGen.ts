@@ -161,7 +161,7 @@ const MESSAGES = {
     'Your image couldn’t be prepared successfully. Please try again.',
 }
 
-function userError(message: string, category = 'server'): BotError {
+function userError(message: string, category: BotError['code'] = 'server'): BotError {
   return new BotError(category, message)
 }
 
@@ -549,6 +549,8 @@ export interface GenerateResult {
   height?: number
   requestId?: string
   processingTimeMs?: number
+  /** MIME type of the generated image (used to pick the right download extension). */
+  mime?: string
 }
 
 /** Call when you no longer need a result to free its blob URL. */
@@ -744,6 +746,7 @@ function createImageResult(
     ...meta,
     url: URL.createObjectURL(blob),
     temporary: true,
+    mime: blob.type,
   }
 }
 
@@ -767,6 +770,7 @@ function metaFrom(data: Record<string, unknown>): Partial<GenerateResult> {
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise(resolve => {
+    if (signal.aborted) return resolve()
     const timer = setTimeout(resolve, ms)
     signal.addEventListener(
       'abort',
@@ -873,7 +877,9 @@ export async function generateImage(
     )
 
     if (timeout.signal.aborted) {
-      throw userError(MESSAGES.timeout, 'server')
+      throw timeout.timedOut()
+        ? userError(MESSAGES.timeout, 'timeout')
+        : userError('Image generation was cancelled.', 'aborted')
     }
 
     files.forEach((file, i) => {
@@ -918,7 +924,7 @@ export async function generateImage(
         }
 
         if (timeout.signal.aborted) {
-          throw userError('Image generation was cancelled.', 'server')
+          throw userError('Image generation was cancelled.', 'aborted')
         }
 
         throw userError(MESSAGES.network, 'server')
@@ -960,7 +966,7 @@ export async function generateImage(
         throw userError(MESSAGES.missingImage, 'server')
       }
 
-      return { url: URL.createObjectURL(blob), temporary: true }
+      return { url: URL.createObjectURL(blob), temporary: true, mime: blob.type }
     }
 
     // --------------------------------------
@@ -1017,7 +1023,7 @@ export async function generateImage(
     }
 
     if (timeout.signal.aborted) {
-      throw userError('Image generation was cancelled.', 'server')
+      throw userError('Image generation was cancelled.', 'aborted')
     }
 
     throw userError(MESSAGES.generic, 'server')
