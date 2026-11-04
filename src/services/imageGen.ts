@@ -4,7 +4,7 @@ import { BotError, authHeaders, withTimeout } from './botApi'
 
 /**
  * Forked Image — Cloudflare Workers AI
- * Model: FLUX.2 Klein 4B
+ * Model: FLUX.2 Klein 9B
  *
  * Features:
  * - Reference images: File, Blob, Data URL, Blob URL and HTTPS.
@@ -438,8 +438,10 @@ function getFriendlyHttpError(status: number): BotError {
       )
 
     case 401:
-    case 403:
       return userError(MESSAGES.unauthorized, 'server')
+
+    case 403:
+      return userError(MESSAGES.forbidden, 'server')
 
     case 413:
       return userError(
@@ -617,10 +619,14 @@ export async function generateImage(
     // Authentication
     // --------------------------------------
 
-    let headers: HeadersInit
+    let requestHeaders: Headers
 
     try {
-      headers = await authHeaders()
+      // Convert any supported HeadersInit shape into a mutable Headers object.
+      // Never set Content-Type manually for FormData: the browser must add
+      // the multipart boundary automatically.
+      requestHeaders = new Headers(await authHeaders())
+      requestHeaders.delete('Content-Type')
     } catch (error) {
       console.error('[Forked Image] Authentication failed:', error)
 
@@ -637,7 +643,7 @@ export async function generateImage(
       response = await fetch(getEndpoint(), {
         method: 'POST',
         signal: timeout.signal,
-        headers,
+        headers: requestHeaders,
         body: formData,
       })
     } catch (error) {
@@ -667,7 +673,9 @@ export async function generateImage(
       console.error('[Forked Image] Worker returned an error:', {
         status: response.status,
         error: errorData?.error ?? null,
+        code: errorData?.code ?? null,
         model: errorData?.model ?? null,
+        debug: errorData?.debug ?? null,
       })
 
       throw getFriendlyHttpError(response.status)
