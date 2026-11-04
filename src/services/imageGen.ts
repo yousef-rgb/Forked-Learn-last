@@ -427,41 +427,94 @@ function getEndpoint(): string {
 // HTTP ERROR HANDLING
 // ==========================================
 
-function getFriendlyHttpError(status: number): BotError {
-  switch (status) {
-    case 400:
-    case 415:
-    case 422:
-      return userError(
-        'We couldn’t process your request. Please check your prompt and reference images.',
-        'invalid'
-      )
+function getFriendlyHttpError(
+  status: number,
+  data?: Record<string, unknown> | null
+): BotError {
+  const code = String(data?.code ?? '')
+  const debug = data?.debug && typeof data.debug === 'object'
+    ? data.debug as Record<string, unknown>
+    : undefined
+  const diagnosticText = [
+    code,
+    debug?.code,
+    debug?.message,
+    debug?.cause,
+  ].filter(Boolean).join(' ').toLowerCase()
 
-    case 401:
-      return userError(MESSAGES.unauthorized, 'server')
-
-    case 403:
-      return userError(MESSAGES.forbidden, 'server')
-
-    case 413:
-      return userError(
-        'Your reference images are too large. Please choose smaller images.',
-        'invalid'
-      )
-
-    case 429:
-      return userError(MESSAGES.rateLimit, 'server')
-
-    case 408:
-      return userError(MESSAGES.timeout, 'server')
-
-    default:
-      if (status >= 500) {
-        return userError(MESSAGES.server, 'server')
-      }
-
-      return userError(MESSAGES.generic, 'server')
+  if (code === 'AI_DAILY_LIMIT' || /\b3036\b/.test(diagnosticText)) {
+    return userError(
+      'The daily image generation limit has been reached. Please try again later.',
+      'server'
+    )
   }
+
+  if (code === 'AI_CAPACITY_EXCEEDED' || /\b3040\b/.test(diagnosticText)) {
+    return userError(
+      'The image model is currently busy. Please try again in a moment.',
+      'server'
+    )
+  }
+
+  if (code === 'AI_TIMEOUT' || /\b3007\b/.test(diagnosticText)) {
+    return userError(MESSAGES.timeout, 'server')
+  }
+
+  if (code === 'AI_MODEL_NOT_FOUND' || /\b5007\b/.test(diagnosticText)) {
+    return userError(
+      'The configured image model could not be found. Please check the Cloudflare Worker configuration.',
+      'config'
+    )
+  }
+
+  if (code === 'AI_BINDING_MISSING') {
+    return userError(
+      'The Workers AI binding is missing. Configure a binding named AI in Cloudflare.',
+      'config'
+    )
+  }
+
+  if (code === 'ORIGIN_NOT_ALLOWED') {
+    return userError(
+      'This website is not allowed to use the image service. Check ALLOWED_ORIGINS in Cloudflare.',
+      'server'
+    )
+  }
+
+  if (status === 400 || status === 415 || status === 422) {
+    return userError(
+      typeof data?.error === 'string'
+        ? data.error
+        : 'We couldn’t process your request. Please check your prompt and reference images.',
+      'invalid'
+    )
+  }
+
+  if (status === 401) return userError(MESSAGES.unauthorized, 'server')
+  if (status === 403) return userError(MESSAGES.forbidden, 'server')
+
+  if (status === 413) {
+    return userError(
+      'Your reference images are too large. Please choose smaller images.',
+      'invalid'
+    )
+  }
+
+  if (status === 429) return userError(MESSAGES.rateLimit, 'server')
+  if (status === 408 || status === 504) return userError(MESSAGES.timeout, 'server')
+  if (status === 503) {
+    return userError(
+      'The image model is temporarily busy. Please try again shortly.',
+      'server'
+    )
+  }
+
+  if (typeof data?.error === 'string' && data.error.trim()) {
+    return userError(data.error, 'server')
+  }
+
+  if (status >= 500) return userError(MESSAGES.server, 'server')
+  return userError(MESSAGES.generic, 'server')
 }
 
 // ==========================================
@@ -678,7 +731,7 @@ export async function generateImage(
         debug: errorData?.debug ?? null,
       })
 
-      throw getFriendlyHttpError(response.status)
+      throw getFriendlyHttpError(response.status, errorData)
     }
 
     // --------------------------------------
