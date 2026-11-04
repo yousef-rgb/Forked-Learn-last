@@ -77,6 +77,11 @@ export const fileToDataUrl = (f: Blob) =>
  */
 export async function urlToDataUrl(url: string): Promise<string> {
   try {
+    // Data URLs can be read directly without fetch.
+    if (url.startsWith('data:')) {
+      return url
+    }
+
     const res = await fetch(url)
 
     if (!res.ok) {
@@ -115,6 +120,45 @@ const b64ToBlob = (b64: string, type = 'image/png') => {
   }
 
   return new Blob([bytes], { type })
+}
+
+/**
+ * Converts a Base64 or regular Data URL directly to Blob.
+ * Does not use fetch(), avoiding CSP connect-src restrictions.
+ */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const match = dataUrl.match(
+    /^data:([^;,]+)?(;base64)?,(.*)$/s
+  )
+
+  if (!match) {
+    throw new BotError(
+      'invalid',
+      'Invalid reference image format.'
+    )
+  }
+
+  const mimeType = match[1] || 'image/png'
+  const isBase64 = Boolean(match[2])
+  const payload = match[3]
+
+  try {
+    if (isBase64) {
+      return b64ToBlob(payload, mimeType)
+    }
+
+    const decoded = decodeURIComponent(payload)
+
+    return new Blob(
+      [new TextEncoder().encode(decoded)],
+      { type: mimeType }
+    )
+  } catch {
+    throw new BotError(
+      'invalid',
+      'Could not decode the reference image.'
+    )
+  }
 }
 
 /**
@@ -174,20 +218,38 @@ export async function generateImage(
     formData.append('width', String(a.width))
     formData.append('height', String(a.height))
 
-    // Convert reference data URLs into image files
+    // Convert reference images into files
     for (let i = 0; i < (a.references?.length ?? 0); i++) {
       const reference = a.references![i]
 
-      const response = await fetch(reference)
+      let blob: Blob
 
-      if (!response.ok) {
+      if (reference.startsWith('data:')) {
+        // Decode Base64 directly without fetch()
+        blob = dataUrlToBlob(reference)
+      } else if (
+        reference.startsWith('blob:') ||
+        /^https?:\/\//i.test(reference)
+      ) {
+        // Read Blob URLs or supported remote image URLs
+        const response = await fetch(reference, {
+          signal: t.signal,
+        })
+
+        if (!response.ok) {
+          throw new BotError(
+            'invalid',
+            `Could not read reference image ${i + 1}.`
+          )
+        }
+
+        blob = await response.blob()
+      } else {
         throw new BotError(
           'invalid',
-          `Could not read reference image ${i + 1}.`
+          `Reference image ${i + 1} has an unsupported URL format.`
         )
       }
-
-      const blob = await response.blob()
 
       const file = new File(
         [blob],
